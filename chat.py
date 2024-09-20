@@ -18,7 +18,7 @@ def predict(message, history, temperature, max_tokens):
     history_openai_format.append({"role": "user", "content": message})
 
     response = client.chat.completions.create(
-        model="mistralai/Mistral-7B-Instruct-v0.2",
+        model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
         messages=history_openai_format,
         temperature=temperature,
         max_tokens=max_tokens,

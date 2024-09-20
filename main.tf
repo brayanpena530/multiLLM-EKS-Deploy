@@ -209,7 +209,7 @@ resource "aws_eks_node_group" "example" {
     min_size     = 1
   }
 
-  # instance_types = ["g5.xlarge"]
+  instance_types = ["g5.xlarge"]
 
   update_config {
     max_unavailable = 1
