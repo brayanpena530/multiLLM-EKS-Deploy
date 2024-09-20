@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tinyllama
+  labels:
+    app: tinyllama
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tinyllama
+  template:
+    metadata:
+      labels:
+        app: tinyllama
+    spec:
+      # nodeSelector:
+      #   "node.kubernetes.io/instance-type": "g5.xlarge"
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      volumes:
+        - emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi
+          name: cache-volume
+      containers:
+        - name: vllm-tinyllama
+          image: vllm/vllm-openai:v0.4.1
+          resources:
+            limits:
+              memory: "16Gi"
+              cpu: "4"
+              nvidia.com/gpu: 6
+            requests:
+              memory: "8Gi"
+              cpu: "2"
+              nvidia.com/gpu: 6
+          # define probe to check if the container is ready
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 15
+            successThreshold: 1
+            failureThreshold: 10
+          args:
+            # full list of arguments: https://docs.vllm.ai/en/latest/models/engine_args.html
+            - --model=TinyLlama/TinyLlama-1.1B-Chat-v1.0 # use the model name from HuggingFace
+            - --max-model-len=2048 # limit context window to 16k tokens to save memory
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface-token
+                  key: token
+          volumeMounts:
+            - mountPath: /dev/shm
+              name: cache-volume
+          ports:
+            - containerPort: 8000
+              name: http
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tinyllama
+  labels:
+    app: tinyllama
+spec:
+  selector:
+    app: tinyllama
+  ports:
+    - protocol: TCP
+      port: 8000
+      name: http
+  type: ClusterIP

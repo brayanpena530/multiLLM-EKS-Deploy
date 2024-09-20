@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: conan-embeddings
+  labels:
+    app: conan-embeddings
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: conan-embeddings
+  template:
+    metadata:
+      labels:
+        app: conan-embeddings
+    spec:
+      # nodeSelector:
+      #   "node.kubernetes.io/instance-type": "g5.xlarge"
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      volumes:
+        - emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi
+          name: cache-volume
+      containers:
+        - name: text-embeddings
+          image: ghcr.io/huggingface/text-embeddings-inference:86-1.5
+          resources:
+            limits:
+              memory: "14Gi"
+              cpu: "1"
+              nvidia.com/gpu: 2
+            requests:
+              memory: "5Gi"
+              cpu: "1"
+              nvidia.com/gpu: 2
+          # define probe to check if the container is ready
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            periodSeconds: 15
+            successThreshold: 1
+            failureThreshold: 10
+          args:
+            # full list of arguments: https://docs.vllm.ai/en/latest/models/engine_args.html
+            - --model-id=TencentBAC/Conan-embedding-v1 # use the model name from HuggingFace
+            - --hf-api-token=huggingface-token
+            # - --max-model-len=2048 # limit context window to 16k tokens to save memory
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface-token
+                  key: token
+            - name: PORT
+              value: "8081"
+          volumeMounts:
+            - mountPath: /dev/shm
+              name: cache-volume
+          ports:
+            - containerPort: 8081
+              name: http
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: conan-embeddings
+  labels:
+    app: conan-embeddings
+spec:
+  selector:
+    app: conan-embeddings
+  ports:
+    - protocol: TCP
+      port: 8081
+      name: http
+  type: ClusterIP

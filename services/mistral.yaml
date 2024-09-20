@@ -14,8 +14,8 @@ spec:
       labels:
         app: vllm
     spec:
-      nodeSelector:
-        "node.kubernetes.io/instance-type": "g5.xlarge"
+      # nodeSelector:
+      #   "node.kubernetes.io/instance-type": "g6.xlarge"
       tolerations:
         - key: nvidia.com/gpu
           operator: Exists
@@ -32,11 +32,11 @@ spec:
             limits:
               memory: "16Gi"
               cpu: "4"
-              nvidia.com/gpu: 1
+              nvidia.com/gpu: 10
             requests:
               memory: "8Gi"
               cpu: "2"
-              nvidia.com/gpu: 1
+              nvidia.com/gpu: 10
           # define probe to check if the container is ready
           readinessProbe:
             httpGet:
@@ -57,8 +57,8 @@ spec:
             failureThreshold: 10
           args:
             # full list of arguments: https://docs.vllm.ai/en/latest/models/engine_args.html
-            - --model=TinyLlama/TinyLlama-1.1B-Chat-v1.0 # use the model name from HuggingFace
-            - --max-model-len=2048 # limit context window to 16k tokens to save memory
+            - --model=mistralai/Mistral-7B-Instruct-v0.2 # use the model name from HuggingFace
+            - --max-model-len=16000 # limit context window to 16k tokens to save memory
           env:
             - name: HF_TOKEN
               valueFrom:
